@@ -1,7 +1,19 @@
 # 飞书 × Moltbot 桥接器
 
 > 原 Clawdbot 已更名为 Moltbot，本项目同步更新
-> 让你的 Clawdbot 智能体直接在飞书里对话——无需公网服务器、无需域名、无需备案。
+
+让你的 Moltbot 智能体直接在飞书里对话——无需公网服务器、无需域名、无需备案。
+
+---
+
+## 💡 现在有两种接入方式
+
+| 方式 | 安装 | 适合 |
+|------|------|------|
+| **[moltbot-feishu](https://www.npmjs.com/package/moltbot-feishu)** (插件) | `clawdbot plugins install moltbot-feishu` | 推荐，一体化管理 |
+| **本项目** (独立桥接) | git clone + 手动启动 | 需要隔离部署，或已稳定运行 |
+
+**区别**：插件内置在 Gateway 里，一个进程搞定；桥接器是独立进程，崩溃不影响 Gateway。功能一样。
 
 ---
 
