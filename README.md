@@ -1,212 +1,127 @@
-# 飞书 × Moltbot 桥接器
+# feishu-openclaw
 
-> 原 Clawdbot 已更名为 Moltbot，本项目同步更新
+> **🆕 2025.1.31 更新**：同步多版本兼容，支持 Clawdbot / OpenClaw / Moltbot
 
-让你的 Moltbot 智能体直接在飞书里对话——无需公网服务器、无需域名、无需备案。
+飞书 × AI 助手 **独立桥接器** — 无需公网服务器。  
+Feishu × AI Assistant **standalone bridge** — no public server required.
 
 ---
 
-## 💡 现在有两种接入方式
+## 🚀 三种安装方式 / Three Install Methods
 
-| 方式 | 安装 | 适合 |
+| 方式 | 命令 | 适合 |
 |------|------|------|
-| **[moltbot-feishu](https://www.npmjs.com/package/moltbot-feishu)** (插件) | `clawdbot plugins install moltbot-feishu` | 推荐，一体化管理 |
-| **本项目** (独立桥接) | git clone + 手动启动 | 需要隔离部署，或已稳定运行 |
+| **① Clawdbot 一键安装** | 告诉你的 Clawdbot：`帮我安装飞书插件` | 新手首选，全自动 |
+| **② npm 插件安装** | `clawdbot plugins install moltbot-feishu` | 开发者，一体化管理 |
+| **③ 独立桥接** ⬅️ 本项目 | `git clone` + 手动启动 | 求稳/隔离部署 |
 
-**区别**：插件内置在 Gateway 里，一个进程搞定；桥接器是独立进程，崩溃不影响 Gateway。功能一样。
+### 方式对比 / Comparison
 
----
+| | 插件 (①②) | 桥接 (③) |
+|---|---|---|
+| 进程数 | 1 个（内置 Gateway） | 2 个（独立进程） |
+| 崩溃影响 | 影响 Gateway | 互不影响 |
+| 配置方式 | `clawdbot config` | 环境变量 |
+| 适合场景 | 日常使用 | **生产/隔离部署** |
 
-## 它是怎么工作的？
-
-想象三个角色：
-
-```
-飞书用户 ←→ 飞书云端 ←→ 桥接脚本（你的电脑上） ←→ Clawdbot 智能体
-```
-
-### 通俗解释
-
-1. **飞书那边**：你在飞书开发者后台创建一个"自建应用"（机器人），飞书会给你一个 App ID 和 App Secret——这就像是机器人的"身份证"。
-
-2. **桥接脚本**：一个运行在你电脑上的小程序。它用飞书提供的 **WebSocket 长连接**（而不是传统的 Webhook）来接收消息——这意味着：
-   - ✅ 不需要公网 IP / 域名
-   - ✅ 不需要 ngrok / frp 等内网穿透
-   - ✅ 不需要 HTTPS 证书
-   - 就像微信一样，你的客户端主动连上去，消息就推过来了
-
-3. **Clawdbot**：桥接脚本收到飞书消息后，通过本地 WebSocket 转发给 Clawdbot Gateway。Clawdbot 调用 AI 模型生成回复，桥接脚本再把回复发回飞书。
-
-### 保活机制
-
-脚本通过 macOS 的 **launchd**（系统服务管理器）运行：
-- 开机自动启动
-- 崩溃自动重启
-- 日志自动写入文件
-
-就像把一个程序设成了"开机启动项"，但更可靠。
+**推荐**：日常用插件（①②），生产环境或需要隔离时用本项目（③）。
 
 ---
 
-## 5 分钟上手
+## 工作原理 / How It Works
 
-### 前提
+```
+飞书用户 ←→ 飞书云端 ←WebSocket→ 桥接脚本（你的电脑） ←→ Clawdbot Gateway
+```
 
-- macOS（已安装 Clawdbot 并正常运行）
-- Node.js ≥ 18
-- Clawdbot Gateway 已启动（`clawdbot gateway status` 检查）
-- 桥接脚本需与 Gateway 在同一台机器（默认连接 `127.0.0.1`）
+- ✅ 不需要公网 IP / 域名 / HTTPS
+- ✅ 不需要 ngrok / frp 内网穿透
+- ✅ 开机自启 + 崩溃自动重启（launchd）
 
-### 第一步：创建飞书机器人
+---
 
-1. 打开 [飞书开放平台](https://open.feishu.cn/app)，登录
-2. 点击 **创建自建应用**
-3. 填写应用名称（随意，比如 "My AI Assistant"）
-4. 进入应用 → **添加应用能力** → 选择 **机器人**
-5. 进入 **权限管理**，开通以下权限：
-   - `im:message` — 获取与发送单聊、群聊消息
-   - `im:message.group_at_msg` — 接收群聊中 @ 机器人的消息
-   - `im:message.p2p_msg` — 接收机器人单聊消息
-6. 进入 **事件与回调** → **事件配置**：
-   - 添加事件：`接收消息 im.message.receive_v1`
-   - 请求方式选择：**使用长连接接收事件**（这是关键！）
-7. 发布应用（创建版本 → 申请上线）
-8. 记下 **App ID** 和 **App Secret**（在"凭证与基础信息"页面）
+## 📋 快速开始 / Quick Start
 
-### 第二步：安装依赖
+### 前提 / Prerequisites
+
+- macOS + Node.js ≥ 18
+- Clawdbot Gateway 已启动（`clawdbot gateway status`）
+- 桥接脚本与 Gateway 在同一台机器
+
+### 1. 创建飞书机器人
+
+1. [飞书开放平台](https://open.feishu.cn/app) → 创建企业自建应用
+2. 添加「机器人」能力
+3. **权限配置** — 开启：`im:message`、`im:message.group_at_msg`、`im:message.p2p_msg`
+4. **事件订阅** → `im.message.receive_v1` → ⚠️ **选「长连接」**
+5. 发布上线，记下 **App ID** + **App Secret**
+
+### 2. 安装 / Install
 
 ```bash
-cd feishu-bridge
+git clone https://github.com/AlexAnys/feishu-openclaw.git
+cd feishu-openclaw/feishu-bridge
 npm install
 ```
 
-### 第三步：配置凭证
-
-把你的飞书 App Secret 保存到安全位置：
+### 3. 配置凭证 / Configure
 
 ```bash
-# 创建 secrets 目录
 mkdir -p ~/.clawdbot/secrets
-
-# 写入 secret（替换成你自己的）
 echo "你的AppSecret" > ~/.clawdbot/secrets/feishu_app_secret
-
-# 设置权限，只有自己能读
 chmod 600 ~/.clawdbot/secrets/feishu_app_secret
 ```
 
-> 如需自定义路径，可设置 `FEISHU_APP_SECRET_PATH` 指向该文件。
-
-### 第四步：测试运行
+### 4. 运行 / Run
 
 ```bash
-# 替换成你的 App ID
-FEISHU_APP_ID=cli_xxxxxxxxx node bridge.mjs
+FEISHU_APP_ID=cli_你的AppID node bridge.mjs
 ```
 
-在飞书里给机器人发一条消息，看到回复就说明成功了 🎉
+去飞书发消息测试 🎉
 
-### 第五步：设置开机自启（可选但推荐）
+### 5. 开机自启（可选）
 
 ```bash
-# 生成 launchd 服务配置（自动检测路径）
 node setup-service.mjs
-
-# 加载服务
 launchctl load ~/Library/LaunchAgents/com.clawdbot.feishu-bridge.plist
-
-# 查看状态
-launchctl list | grep feishu
 ```
-
-之后电脑重启也会自动连上。
 
 ---
 
-## 文件说明
+## ⚠️ 常见问题 / Troubleshooting
+
+### 收不到消息？
+
+| 检查项 | 说明 |
+|--------|------|
+| 应用已发布 | 不是草稿状态 |
+| 长连接模式 | 不是 webhook |
+| 权限已开启 | 三个 im 权限 |
+
+### 群聊不回复？
+
+@机器人，或消息末尾加问号。
+
+---
+
+## 文件说明 / Files
 
 ```
 feishu-bridge/
-├── bridge.mjs           # 核心桥接脚本（~200行）
-├── setup-service.mjs    # 自动生成 launchd 保活配置
-├── package.json         # 依赖声明
-└── README.md            # 你正在读的这个
+├── bridge.mjs           # 核心桥接脚本
+├── setup-service.mjs    # launchd 保活配置生成
+└── package.json
 ```
 
 ---
 
-## 进阶
+## 链接 / Links
 
-### 群聊行为
-
-在群聊中，桥接器默认"低打扰"模式——只在以下情况回复：
-- 被 @ 了
-- 消息看起来是提问（以 `?` / `？` 结尾）
-- 消息包含请求类动词（帮、请、分析、总结、写…）
-- 用名字呼唤（bot、助手…，可在代码中自定义）
-
-其他闲聊不会回复，避免刷屏。
-
-### "正在思考…" 提示
-
-如果 AI 回复超过 2.5 秒，会先发一条"正在思考…"，等回复生成后自动替换成完整内容。
-
-### 日志位置
-
-```
-~/.clawdbot/logs/feishu-bridge.out.log   # 正常输出
-~/.clawdbot/logs/feishu-bridge.err.log   # 错误日志
-```
-
----
-
-## 常见歧义与配置说明
-
-### 1) Clawdbot 配置路径
-
-默认读取：`~/.clawdbot/clawdbot.json`  
-如果你把 Clawdbot 安装在其他目录，需手动指定：
-
-```bash
-CLAWDBOT_CONFIG_PATH=/your/path/clawdbot.json FEISHU_APP_ID=cli_xxx node bridge.mjs
-```
-
-### 2) 选择 Clawdbot 的 Agent
-
-默认使用 `main`，如需切换：
-
-```bash
-CLAWDBOT_AGENT_ID=你的AgentID FEISHU_APP_ID=cli_xxx node bridge.mjs
-```
-
-### 3) Gateway 必须在本机
-
-桥接器固定连接 `127.0.0.1`，所以桥接脚本必须与 Gateway 在同一台机器。  
-如果你想跨机器部署，需要自行改代码或加一层转发。
-
-### 停止服务
-
-```bash
-launchctl unload ~/Library/LaunchAgents/com.clawdbot.feishu-bridge.plist
-```
-
----
-
-## 常见问题
-
-**Q: 需要服务器吗？**
-不需要。飞书的 WebSocket 长连接模式让你的电脑直接连到飞书云端，不需要公网暴露。
-
-**Q: 电脑关机了怎么办？**
-机器人会离线。重新开机后 launchd 会自动重启桥接服务。如需 24/7 在线，可以部署到一台常开的机器（比如 NAS、云服务器、甚至树莓派）。
-
-**Q: 飞书免费版能用吗？**
-可以。自建应用和机器人能力对所有飞书版本开放。
-
-**Q: 能同时接 Telegram / 微信吗？**
-可以。Clawdbot 原生支持 Telegram 等渠道，飞书桥接只是多加一个入口，互不影响。
-
----
+- 📦 [npm: moltbot-feishu](https://www.npmjs.com/package/moltbot-feishu) (插件)
+- 🔌 [GitHub: openclaw-feishu](https://github.com/AlexAnys/openclaw-feishu) (插件)
+- 🌉 [GitHub: feishu-openclaw](https://github.com/AlexAnys/feishu-openclaw) (本项目)
+- 📖 [Clawdbot 文档](https://docs.clawd.bot)
 
 ## License
 
