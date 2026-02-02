@@ -1,4 +1,6 @@
 # feishu-openclaw (桥接)
+飞书 × AI 助手 **独立桥接器** — 无需公网服务器  
+Feishu × AI Assistant **standalone bridge** — no public server required
 
 ## 🔥 2026.02.02 重磅更新，如有帮助，欢迎🌟🌟让更多人看到
 
@@ -65,11 +67,8 @@ FEISHU_APP_ID=cli_xxxxxxxxx node bridge.mjs
 
 如果不工作，先开调试模式运行一次（见下方“调试”章节）。
 
-> **🆕 2025.2.1**：同步更新飞书插件=> [openclaw-feishu](https://github.com/AlexAnys/openclaw-feishu)，适配OpenClaw
 
-飞书 × AI 助手 **独立桥接器** — 无需公网服务器  
-Feishu × AI Assistant **standalone bridge** — no public server required
-
+## **🆕 2025.2.1**：同步更新飞书插件=> [openclaw-feishu](https://github.com/AlexAnys/openclaw-feishu)，适配OpenClaw
 ---
 
 ## 📦 安装方式 / Install Methods
