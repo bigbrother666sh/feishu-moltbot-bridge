@@ -2,7 +2,14 @@
 飞书 × AI 助手 **独立桥接器** — 无需公网服务器  
 Feishu × AI Assistant **standalone bridge** — no public server required
 
-## 🔥 2026.02.02 重磅更新，感谢大家的支持
+## 你应该用哪个？（插件 vs 独立桥接）
+
+- 想要**最省事、一键安装**：用插件版（OpenClaw/Clawdbot）→ <https://github.com/AlexAnys/openclaw-feishu>
+- 想要**媒体最稳（收图/收视频/生图回传）、并且和 Gateway 进程隔离**：用本仓库（独立桥接）
+
+> 建议：先用插件跑通，再按需求升级到桥接；或者直接用桥接（更稳，但需要你自己维护一个进程/服务）。
+
+## 🔥 2026.02.02 重磅更新（强烈建议所有旧版本升级）
 
 这次更新解决了“能聊天但媒体不通”的所有相关痛点：
 
@@ -135,10 +142,12 @@ FEISHU_APP_ID=cli_xxxxxxxxx node bridge.mjs
 2. 点击 **创建自建应用**
 3. 填写应用名称（随意，比如 "My AI Assistant"）
 4. 进入应用 → **添加应用能力** → 选择 **机器人**
-5. 进入 **权限管理**，开通以下权限：
-   - `im:message` — 获取与发送单聊、群聊消息
+5. 进入 **权限管理**，开通以下权限（推荐照抄，少踩坑）：
+   - `im:message` — 获取与发送消息
+   - `im:message:send_as_bot` — 以机器人身份发消息（避免 403）
    - `im:message.group_at_msg` — 接收群聊中 @ 机器人的消息
    - `im:message.p2p_msg` — 接收机器人单聊消息
+   - `im:resource` — 上传/下载图片与文件（**收图/收视频**必须）
 6. 进入 **事件与回调** → **事件配置**：
    - 添加事件：`接收消息 im.message.receive_v1`
    - 请求方式选择：**使用长连接接收事件**（这是关键！）
@@ -232,7 +241,7 @@ feishu-openclaw/
 
 ### 调试（推荐）
 
-如果你遇到“图片发不过来 / 生图发不出来 / 只看到 key”等问题：
+如果你遇到“图片发不过来 / 生图发不出来 / 只看到 key / 只收到文字”等问题：
 
 1) 在本项目目录新建或编辑 `.env`（注意：`.env` 不会上传到 GitHub，很安全）
 
@@ -254,6 +263,36 @@ tail -n 200 ~/.clawdbot/logs/feishu-bridge.err.log
 ```
 
 ---
+
+## 排查清单（遇到问题先看这里）
+
+### 1) 能发消息，但收不到消息
+
+- 飞书开放平台 → **事件与回调**：订阅方式是否选了 **“使用长连接接收事件”**？
+- 是否添加了事件：`im.message.receive_v1`？
+- 应用是否已发布（至少测试版发布）？
+- 机器人是否已添加到对应群聊/可用范围？
+
+### 2) 你发图片/视频，AI 看不到（只看到 key / [图片]）
+
+- 权限是否开了 `im:resource`（媒体资源权限）？
+- 打开调试：在 `.env` 里设 `FEISHU_BRIDGE_DEBUG=1`，然后看日志：
+  - `~/.clawdbot/logs/feishu-bridge.err.log`
+
+### 3) AI 说“生成了图片”，但飞书收不到图片
+
+通常是两类原因：
+- 生成的图片路径不在允许发送的白名单目录里（默认只允许 `~/.clawdbot/media`、系统临时目录、`/tmp`）
+- 图片文件太大或不可读
+
+也建议先开调试，看日志定位。
+
+### 4) 视频/文件能收到，但 AI “理解内容”有限
+
+- 目前桥接会下载视频/文件，并把 `file://...` 路径传给 AI。
+- 但 AI 是否能“读懂”文件内容，取决于你使用的 agent/工具链是否会去读取该文件。
+
+> 如果你希望自动解析 PDF/Word/Excel 并把内容转成文本喂给 AI，需要额外扩展（欢迎提 issue）。
 
 ## 常见歧义与配置说明
 
@@ -286,6 +325,12 @@ launchctl unload ~/Library/LaunchAgents/com.clawdbot.feishu-bridge.plist
 ```
 
 ---
+
+## 版本与更新（Releases）
+
+- 推荐从 GitHub 的 **Releases** 获取“稳定版本”的更新说明与升级指引：
+  <https://github.com/AlexAnys/feishu-openclaw/releases>
+- 如果你是通过 `git clone` 安装的：升级基本就是 `git pull` + `npm install` + 重启服务。
 
 ## 常见问题
 
